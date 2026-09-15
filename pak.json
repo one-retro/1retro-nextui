@@ -1,0 +1,15 @@
+{
+	"name": "1Retro Sync",
+	"version": "v0.5.2",
+	"type": "TOOL",
+	"description": "Sync your game saves with the 1Retro cloud.",
+	"author": "1Retro",
+	"repo_url": "https://github.com/one-retro/nextui-pak",
+	"release_filename": "1Retro.Sync.pak.zip",
+	"screenshots": [
+		".github/resources/screenshots/login.png",
+		".github/resources/screenshots/menu.png",
+		".github/resources/screenshots/sync_done.png"
+	],
+	"platforms": ["tg5040", "tg5050", "h700", "my355", "rg35xxplus"]
+}
