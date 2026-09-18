@@ -4,7 +4,7 @@
 	"type": "TOOL",
 	"description": "Sync your game saves with the 1Retro cloud.",
 	"author": "1Retro",
-	"repo_url": "https://github.com/one-retro/nextui-pak",
+	"repo_url": "https://github.com/one-retro/1retro-nextui",
 	"release_filename": "1Retro.Sync.pak.zip",
 	"screenshots": [
 		".github/resources/screenshots/login.png",
