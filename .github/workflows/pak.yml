@@ -1,0 +1,91 @@
+name: pak
+
+# Assemble the pak zip when a release is published. The release itself is cut
+# from the 1Retro source tree (`just publish-nextui-release`), which attaches
+# the two binaries; everything else in the pak lives here, so this is where the
+# zip is put together and attached to the same release.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # minui-presenter and minui-list are bundled per platform (both MIT). Pinned,
+  # because a pak that picks up whatever is latest at assembly time is a pak
+  # whose UI can change without a release of its own.
+  PRESENTER_VERSION: "0.13.0"
+  LIST_VERSION: "0.15.1"
+
+jobs:
+  pak:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Through the environment, never interpolated into the script: a tag name
+      # is attacker-chosen text as far as the shell is concerned.
+      - name: Resolve the release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          tag="$RELEASE_TAG"
+          [ -n "$tag" ] || tag=$(gh release view --json tagName --jq .tagName)
+          echo "TAG=$tag" >>"$GITHUB_ENV"
+
+      - name: Fetch the binaries from the release
+        run: |
+          mkdir -p build
+          gh release download "$TAG" --dir build \
+            --pattern '1retro-nextui-arm64' \
+            --pattern '1retro-nextui-arm'
+
+      - name: Assemble the pak
+        run: |
+          set -eu
+          PAK="build/1Retro Sync.pak"
+          mkdir -p "$PAK/bin/arm64" "$PAK/bin/arm"
+
+          cp pak/launch.sh "$PAK/"
+          cp pak/bin/on-boot "$PAK/bin/"
+          # The store reads pak.json from the repo root; the pak needs its own
+          # copy, and they are the same file.
+          cp pak.json "$PAK/"
+          cp build/1retro-nextui-arm64 "$PAK/bin/arm64/1retro-nextui"
+          cp build/1retro-nextui-arm "$PAK/bin/arm/1retro-nextui"
+
+          presenter_base="https://github.com/josegonzalez/minui-presenter/releases/download/$PRESENTER_VERSION"
+          list_base="https://github.com/josegonzalez/minui-list/releases/download/$LIST_VERSION"
+          for plat in tg5040 tg5050 h700 my355 rg35xxplus; do
+              mkdir -p "$PAK/bin/$plat"
+              case "$plat" in
+                  # The "-nextui" builds draw in the user's NextUI theme instead
+                  # of white-on-black, and go only to the platforms NextUI runs
+                  # on. h700 is the community NextUI port for Anbernic's H700
+                  # handhelds. Everything else runs MinUI and takes the MinUI
+                  # build: unthemed there, where a NextUI build might not load.
+                  tg5040 | tg5050 | h700) flavour="$plat-nextui" ;;
+                  *) flavour="$plat" ;;
+              esac
+              curl -fsSL -o "$PAK/bin/$plat/minui-presenter" "$presenter_base/minui-presenter-$flavour"
+              curl -fsSL -o "$PAK/bin/$plat/minui-list" "$list_base/minui-list-$flavour"
+              chmod +x "$PAK/bin/$plat/minui-presenter" "$PAK/bin/$plat/minui-list"
+          done
+
+          curl -fsSL -o "$PAK/bin/LICENSE.minui-presenter" \
+            "https://raw.githubusercontent.com/josegonzalez/minui-presenter/$PRESENTER_VERSION/LICENSE"
+          curl -fsSL -o "$PAK/bin/LICENSE.minui-list" \
+            "https://raw.githubusercontent.com/josegonzalez/minui-list/$LIST_VERSION/LICENSE"
+
+          chmod +x "$PAK/launch.sh" "$PAK/bin/on-boot" "$PAK"/bin/arm*/1retro-nextui
+
+          # Contents at the zip root, per the store's packaging rule.
+          (cd "$PAK" && zip -qr - .) > build/1Retro.Sync.pak.zip
+          unzip -l build/1Retro.Sync.pak.zip | tail -5
+
+      - name: Attach it to the release
+        run: gh release upload "$TAG" build/1Retro.Sync.pak.zip --clobber

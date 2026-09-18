@@ -1,0 +1,27 @@
+#!/bin/sh
+# 1Retro Sync — started at boot by .userdata/$PLATFORM/auto.sh
+#
+# Runs the sync watcher in the background: saves are uploaded as the emulator
+# writes them, and anything saved on another device comes down. The menu's
+# "Start watching at boot" option adds and removes the auto.sh line that runs
+# this; nothing here keeps the device awake, so it still sleeps normally.
+
+PAK_DIR="$(dirname "$(dirname "$0")")"
+PAK_NAME="$(basename "$PAK_DIR")"
+PAK_NAME="${PAK_NAME%.*}"
+
+SDCARD_PATH="${SDCARD_PATH:-/mnt/SDCARD}"
+USERDATA_PATH="${USERDATA_PATH:-$SDCARD_PATH/.userdata/$PLATFORM}"
+STATE_DIR="$USERDATA_PATH/$PAK_NAME"
+mkdir -p "$STATE_DIR"
+
+architecture=arm
+if uname -m | grep -q '64'; then
+    architecture=arm64
+fi
+
+# The pak's own UI is not running at boot, so everything goes to the log.
+exec "$PAK_DIR/bin/$architecture/1retro-nextui" \
+    --root "$SDCARD_PATH" \
+    --state-dir "$STATE_DIR" \
+    --watch >"$STATE_DIR/watch.log" 2>&1 &
