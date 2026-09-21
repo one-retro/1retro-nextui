@@ -1,0 +1,21 @@
+# The SHA-256 of every minui-presenter and minui-list build this pak
+# bundles, and the versions they come from.
+#
+# Written by ./scripts/pin-minui.sh, so do not edit it by hand. The
+# release workflow fetches exactly these files and refuses any that do
+# not match, because a moved tag or a re-uploaded asset would otherwise
+# change what ships to a device without changing anything here.
+#
+# Both tools are MIT, and their LICENSE files ship inside the pak.
+presenter_version 0.13.0
+list_version 0.15.1
+sha256 minui-presenter tg5040 tg5040-nextui 4c3e31b97994cf94443781302613cd346a15e8ac6f93ecf7eabd853fd323b1fc
+sha256 minui-list tg5040 tg5040-nextui 38f7d750e9c966df6cfe9667823271ca02cc23c9eabae0bf36b0685a5fb5a098
+sha256 minui-presenter tg5050 tg5050-nextui 673bf67fed0e5f73c0bd8aab22d242174452fb81b9f925f29d55831e0a8f6a04
+sha256 minui-list tg5050 tg5050-nextui 4eac7c77a1b37e6d16d7830b4277c7d9582425e5c162c02fc368ecf1027027a5
+sha256 minui-presenter h700 h700-nextui 6156dfa1032c8729d0bb606eb6d37d23defbcdd41c9ef2888f2e1e1ffc8a2def
+sha256 minui-list h700 h700-nextui 8971d7b2b20aef9c2307106a591496b2edd10a59b42256d6888d2f7a68ec66bf
+sha256 minui-presenter my355 my355 9cba77040b7b67d719872cbf05cf1c28032893c04d35f9942295d3e38fd52d00
+sha256 minui-list my355 my355 e524e05dcc7e6018c236f2af5dc0ddd39db9dd2f95425b27dc67e14b5f63a0cf
+sha256 minui-presenter rg35xxplus rg35xxplus c88e7f3926e5acec670b540799a90eb3553e2eee7ace6c2543d04389bc9b9ea4
+sha256 minui-list rg35xxplus rg35xxplus 17dd4867dc7a72205beb38218f4228717c0723f19d5164248f133543bbd4d5cc

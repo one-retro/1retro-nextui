@@ -12,13 +12,6 @@ on:
 permissions:
   contents: write
 
-env:
-  # minui-presenter and minui-list are bundled per platform (both MIT). Pinned,
-  # because a pak that picks up whatever is latest at assembly time is a pak
-  # whose UI can change without a release of its own.
-  PRESENTER_VERSION: "0.13.0"
-  LIST_VERSION: "0.15.1"
-
 jobs:
   pak:
     runs-on: ubuntu-latest
@@ -46,8 +39,9 @@ jobs:
 
       - name: Assemble the pak
         run: |
-          set -eu
+          set -euo pipefail
           PAK="build/1Retro Sync.pak"
+          LOCK=pak/minui.lock
           mkdir -p "$PAK/bin/arm64" "$PAK/bin/arm"
 
           cp pak/launch.sh "$PAK/"
@@ -58,28 +52,44 @@ jobs:
           cp build/1retro-nextui-arm64 "$PAK/bin/arm64/1retro-nextui"
           cp build/1retro-nextui-arm "$PAK/bin/arm/1retro-nextui"
 
-          presenter_base="https://github.com/josegonzalez/minui-presenter/releases/download/$PRESENTER_VERSION"
-          list_base="https://github.com/josegonzalez/minui-list/releases/download/$LIST_VERSION"
-          for plat in tg5040 tg5050 h700 my355 rg35xxplus; do
-              mkdir -p "$PAK/bin/$plat"
-              case "$plat" in
-                  # The "-nextui" builds draw in the user's NextUI theme instead
-                  # of white-on-black, and go only to the platforms NextUI runs
-                  # on. h700 is the community NextUI port for Anbernic's H700
-                  # handhelds. Everything else runs MinUI and takes the MinUI
-                  # build: unthemed there, where a NextUI build might not load.
-                  tg5040 | tg5050 | h700) flavour="$plat-nextui" ;;
-                  *) flavour="$plat" ;;
+          presenter_version=$(awk '$1 == "presenter_version" { print $2 }' "$LOCK")
+          list_version=$(awk '$1 == "list_version" { print $2 }' "$LOCK")
+
+          # Every bundled helper is fetched at its pinned version and checked
+          # against the lock. A tag can be moved and an asset re-uploaded, so
+          # without this the bytes reaching a handheld are whatever that URL
+          # returns today rather than what was reviewed. The pins are written by
+          # ./scripts/pin-minui.sh, which also owns the platform/flavour table.
+          #
+          # Read from a file rather than piped into the loop: a `while read` on
+          # the far side of a pipe runs in a subshell, where a failing `exit 1`
+          # would end the subshell and let the build carry on regardless.
+          awk '$1 == "sha256" { print $2, $3, $4, $5 }' "$LOCK" >build/pins
+          test -s build/pins || { echo "no pins in $LOCK" >&2; exit 1; }
+          while read -r tool platform flavour sha; do
+              case "$tool" in
+                  minui-presenter) version="$presenter_version" ;;
+                  minui-list) version="$list_version" ;;
+                  *) echo "unknown tool in $LOCK: $tool" >&2; exit 1 ;;
               esac
-              curl -fsSL -o "$PAK/bin/$plat/minui-presenter" "$presenter_base/minui-presenter-$flavour"
-              curl -fsSL -o "$PAK/bin/$plat/minui-list" "$list_base/minui-list-$flavour"
-              chmod +x "$PAK/bin/$plat/minui-presenter" "$PAK/bin/$plat/minui-list"
-          done
+              mkdir -p "$PAK/bin/$platform"
+              dest="$PAK/bin/$platform/$tool"
+              curl -fsSL -o "$dest" \
+                "https://github.com/josegonzalez/$tool/releases/download/$version/$tool-$flavour"
+              if ! echo "$sha  $dest" | sha256sum -c - >/dev/null 2>&1; then
+                  echo "$tool-$flavour does not match the SHA-256 in $LOCK; refusing it" >&2
+                  echo "  expected $sha" >&2
+                  echo "  got      $(sha256sum "$dest" | cut -d' ' -f1)" >&2
+                  exit 1
+              fi
+              chmod +x "$dest"
+              echo "verified $tool-$flavour -> bin/$platform/$tool"
+          done <build/pins
 
           curl -fsSL -o "$PAK/bin/LICENSE.minui-presenter" \
-            "https://raw.githubusercontent.com/josegonzalez/minui-presenter/$PRESENTER_VERSION/LICENSE"
+            "https://raw.githubusercontent.com/josegonzalez/minui-presenter/$presenter_version/LICENSE"
           curl -fsSL -o "$PAK/bin/LICENSE.minui-list" \
-            "https://raw.githubusercontent.com/josegonzalez/minui-list/$LIST_VERSION/LICENSE"
+            "https://raw.githubusercontent.com/josegonzalez/minui-list/$list_version/LICENSE"
 
           chmod +x "$PAK/launch.sh" "$PAK/bin/on-boot" "$PAK"/bin/arm*/1retro-nextui
 

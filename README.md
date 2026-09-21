@@ -75,8 +75,17 @@ synced.
 | ---- | ---------- |
 | `pak/launch.sh` | The pak's entry point: picks the architecture, sets up `PATH`, runs the app |
 | `pak/bin/on-boot` | Starts the background watcher at boot, when that option is on |
+| `pak/minui.lock` | The versions and SHA-256s of the bundled minui-presenter and minui-list |
 | `pak.json` | The Pak Store manifest, read from this repo's root |
+| `scripts/pin-minui.sh` | Rewrites the lock, for upgrading those two helpers |
 | `.github/workflows/pak.yml` | Assembles the pak zip and attaches it to each release |
+
+The pak bundles [minui-presenter](https://github.com/josegonzalez/minui-presenter)
+and [minui-list](https://github.com/josegonzalez/minui-list) rather than
+depending on them being installed. They are fetched at build time at the
+versions in `pak/minui.lock` and checked against the SHA-256s there, so a moved
+tag or a re-uploaded asset cannot change what ships to a device without showing
+up as a diff here first.
 
 The `1retro-nextui` binary is built from the 1Retro source tree (arm64 and arm,
 static musl) and attached to each release here, where the workflow picks it up.
