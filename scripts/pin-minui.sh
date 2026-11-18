@@ -12,6 +12,10 @@
 #
 #   ./scripts/pin-minui.sh 0.14.0 0.16.0
 #
+# Or to whatever each project last released, which says what it moved from:
+#
+#   ./scripts/pin-minui.sh latest
+#
 # Re-pin the versions already in the lock (which is how you find out whether
 # upstream moved them under you):
 #
@@ -45,11 +49,34 @@ lock_value() {
     awk -v key="$1" '$1 == key { print $2 }' "$LOCK"
 }
 
-presenter_version="${1:-$(lock_value presenter_version)}"
-list_version="${2:-$(lock_value list_version)}"
+# The tag GitHub's /releases/latest redirects to: the newest release that is
+# neither a draft nor a prerelease. Asked of the web redirect rather than the
+# API, so there is no JSON to parse and no API rate limit to run into.
+latest_version() {
+    url=$(curl -fsSI -o /dev/null -w '%{redirect_url}' \
+        "https://github.com/josegonzalez/$1/releases/latest")
+    case "$url" in
+        */releases/tag/*) echo "${url##*/releases/tag/}" ;;
+        *)
+            echo "could not find the latest release of $1" >&2
+            exit 1
+            ;;
+    esac
+}
+
+if [ "${1:-}" = latest ]; then
+    [ $# -eq 1 ] || { echo "usage: $0 latest" >&2; exit 2; }
+    presenter_version=$(latest_version minui-presenter)
+    list_version=$(latest_version minui-list)
+    echo "minui-presenter: $(lock_value presenter_version) -> $presenter_version" >&2
+    echo "minui-list:      $(lock_value list_version) -> $list_version" >&2
+else
+    presenter_version="${1:-$(lock_value presenter_version)}"
+    list_version="${2:-$(lock_value list_version)}"
+fi
 
 if [ -z "$presenter_version" ] || [ -z "$list_version" ]; then
-    echo "usage: $0 <minui-presenter version> <minui-list version>" >&2
+    echo "usage: $0 <minui-presenter version> <minui-list version> | latest" >&2
     echo "(no lock to read current versions from)" >&2
     exit 2
 fi
